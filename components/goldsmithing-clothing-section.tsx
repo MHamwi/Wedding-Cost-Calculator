@@ -36,42 +36,40 @@ export function GoldsmithingClothingSection({
   const [clothingCurrency, setClothingCurrency] = useState(currency)
   const [totalCurrency, setTotalCurrency] = useState(currency)
   
-  // Track clothing cost in both currencies
+  // Track clothing cost in SYP (base currency)
   const [clothingCostSYP, setClothingCostSYP] = useState(
     currency === "SYP" ? clothingCost : Math.round(clothingCost * dollarRate)
   )
-  const [clothingCostUSD, setClothingCostUSD] = useState(
-    currency === "USD" ? clothingCost : Math.round((clothingCost / dollarRate) * 100) / 100
-  )
+  
+  // Calculate USD equivalent
+  const clothingCostUSD = Math.round((clothingCostSYP / dollarRate) * 100) / 100
   
   // Initialize currencies from props
   useEffect(() => {
     setClothingCurrency(currency)
     setTotalCurrency(currency)
   }, [currency])
-
-  // Update local clothing cost when parent's clothingCost changes
+  
+  // Update parent when local SYP cost changes
   useEffect(() => {
-    if (currency === "SYP" && clothingCostSYP !== clothingCost) {
-      setClothingCostSYP(clothingCost)
-    } else if (currency === "USD" && clothingCostUSD !== clothingCost) {
-      setClothingCostUSD(clothingCost)
-    }
-  }, [clothingCost, currency])
+    onClothingCostChange(clothingCostSYP)
+  }, [clothingCostSYP, onClothingCostChange])
 
-  // Calculate the total cost of gold in SYP
+  // Calculate the total cost of gold in SYP and USD
   const goldCostSYP = goldGrams * goldPrice
+  const goldCostUSD = goldCostSYP / dollarRate
   
-  // Calculate the current clothing cost in the selected currency
-  const currentClothingCost = clothingCurrency === "USD" ? clothingCostUSD : clothingCostSYP
+  // Get the current clothing cost in the selected currency for display
+  const currentClothingCost = clothingCurrency === "USD" 
+    ? clothingCostUSD 
+    : clothingCostSYP
   
-  // Calculate the total cost in SYP (base currency for calculations)
-  const totalCostInSYP = goldCostSYP + clothingCostSYP
+  // Calculate totals in both currencies
+  const totalSYP = goldCostSYP + clothingCostSYP
+  const totalUSD = goldCostUSD + clothingCostUSD
   
   // Calculate the total cost in the selected currency for display
-  const displayTotalCost = totalCurrency === "USD" 
-    ? (goldCostSYP / dollarRate) + clothingCostUSD 
-    : totalCostInSYP
+  const displayTotalCost = totalCurrency === "USD" ? totalUSD : totalSYP
   
   // Format the total based on the selected currency
   const totalCostFormatted = formatCurrency(
@@ -83,27 +81,19 @@ export function GoldsmithingClothingSection({
   // Available currencies
   const currencies = ["SYP", "USD"]
   
-  // Handle clothing currency change and convert the value
+  // Handle clothing currency change
   const handleClothingCurrencyChange = (newCurrency: string) => {
     if (newCurrency === clothingCurrency) return; // No change needed
     
-    // Convert the clothing cost to the new currency
-    if (newCurrency === "USD") {
-      // Convert from SYP to USD
-      const newClothingCostUSD = Math.round((clothingCostSYP / dollarRate) * 100) / 100;
-      setClothingCostUSD(newClothingCostUSD);
-      // Only update parent with the SYP value for calculations
-      onClothingCostChange(clothingCostSYP);
-    } else {
-      // Convert from USD to SYP
-      const newClothingCostSYP = Math.round(clothingCostUSD * dollarRate);
-      setClothingCostSYP(newClothingCostSYP);
-      onClothingCostChange(newClothingCostSYP);
-    }
-    
-    // Update the clothing currency
+    // If switching to USD, we keep the SYP value but update the display currency
+    // The actual value in SYP remains the same, we just show the USD equivalent
     setClothingCurrency(newCurrency);
-    // Don't update parent's currency - keep it independent
+    
+    // If we're switching to SYP, we need to ensure the input shows the SYP value
+    if (newCurrency === "SYP") {
+      // Force update the input field to show SYP value
+      // The actual value is already in SYP in the state
+    }
   }
   
   // Handle total currency change (display only, doesn't affect calculations)
@@ -180,11 +170,12 @@ export function GoldsmithingClothingSection({
               onChange={(e) => {
                 const newValue = Number(e.target.value);
                 if (clothingCurrency === "USD") {
-                  setClothingCostUSD(newValue);
-                  onClothingCostChange(newValue);
+                  // Convert USD to SYP and update SYP state
+                  const newSYP = Math.round(newValue * dollarRate);
+                  setClothingCostSYP(newSYP);
                 } else {
+                  // Directly update SYP state
                   setClothingCostSYP(newValue);
-                  onClothingCostChange(newValue);
                 }
               }}
             />
@@ -237,12 +228,16 @@ export function GoldsmithingClothingSection({
           <div className="flex justify-between items-center">
             <div className="flex flex-col">
               <p className="text-xs text-muted-foreground">
-                {isArabic ? "ذهب" : "Gold"}: {formatCurrency(goldCostSYP, "SYP", dollarRate)}
+                {isArabic ? "ذهب" : "Gold"}: {formatCurrency(
+                  totalCurrency === "USD" ? goldCostUSD : goldCostSYP,
+                  totalCurrency,
+                  dollarRate
+                )}
               </p>
               <p className="text-xs text-muted-foreground">
                 {isArabic ? "ملابس" : "Clothing"}: {formatCurrency(
-                  currentClothingCost,
-                  clothingCurrency,
+                  totalCurrency === "USD" ? clothingCostUSD : clothingCostSYP,
+                  totalCurrency,
                   dollarRate
                 )}
               </p>

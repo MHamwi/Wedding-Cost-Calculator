@@ -153,8 +153,8 @@ export function HomeFurnishingManager({
         sypInstallmentTotals[item.categoryId] = 0
       }
 
-      // All items are stored in SYP, so we use the price directly
-      const sypPrice = item.price
+      // Convert item price to SYP if it's in USD
+      const sypPrice = item.currency === 'USD' ? Math.round(item.price * dollarRate) : item.price
 
       if (item.isInstallment) {
         const downPayment = sypPrice * 0.5 // 50% down payment
@@ -675,17 +675,73 @@ export function HomeFurnishingManager({
                             <TableRow key={item.id}>
                               <TableCell className="font-medium">{item.name}</TableCell>
                               <TableCell>
-                                {item.currency === "USD" 
-                                  ? `$${new Intl.NumberFormat('en-US', {
-                                      minimumFractionDigits: 0,
-                                      maximumFractionDigits: 0
-                                    }).format(item.price)}`
-                                  : formatCurrency(item.price, item.currency, dollarRate)
-                                }
+                                <div className="flex items-center gap-2">
+                                  <span>
+                                    {item.currency === "USD" 
+                                      ? `$${new Intl.NumberFormat('en-US', {
+                                          minimumFractionDigits: 0,
+                                          maximumFractionDigits: 0
+                                        }).format(item.price)}`
+                                      : formatCurrency(item.price, item.currency, dollarRate)
+                                    }
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => {
+                                        const updatedItems = items.map(i => 
+                                          i.id === item.id 
+                                            ? { 
+                                                ...i, 
+                                                currency: 'SYP',
+                                                price: i.currency === 'USD' 
+                                                  ? Math.round(i.price * dollarRate) 
+                                                  : i.price
+                                              } 
+                                            : i
+                                        )
+                                        setItems(updatedItems)
+                                      }}
+                                      className={`text-xs px-1 py-0.5 rounded ${item.currency === 'SYP' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+                                    >
+                                      SYP
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const updatedItems = items.map(i => 
+                                          i.id === item.id 
+                                            ? { 
+                                                ...i, 
+                                                currency: 'USD',
+                                                price: i.currency === 'SYP' 
+                                                  ? Math.round(i.price / dollarRate) 
+                                                  : i.price
+                                              } 
+                                            : i
+                                        )
+                                        setItems(updatedItems)
+                                      }}
+                                      className={`text-xs px-1 py-0.5 rounded ${item.currency === 'USD' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+                                    >
+                                      USD
+                                    </button>
+                                  </div>
+                                </div>
                               </TableCell>
-                              <TableCell>{item.currency}</TableCell>
                               <TableCell>
-                                {item.isInstallment ? t("furnishing.installment") : t("furnishing.cash")}
+                                {item.isInstallment ? (
+                                  <div className="flex flex-col">
+                                    <span>{t("furnishing.installment")}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {item.currency === "USD" 
+                                        ? `$${new Intl.NumberFormat('en-US', {
+                                            minimumFractionDigits: 0,
+                                            maximumFractionDigits: 0
+                                          }).format(item.monthlyInstallment)}`
+                                        : formatCurrency(item.monthlyInstallment, item.currency, dollarRate)
+                                      } × {item.installmentMonths} {isRTL ? "شهر" : "months"}
+                                    </span>
+                                  </div>
+                                ) : t("furnishing.cash")}
                               </TableCell>
                               <TableCell>
                                 {item.isInstallment
